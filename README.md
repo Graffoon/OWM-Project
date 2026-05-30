@@ -12,7 +12,7 @@ The experiment uses **Split-MNIST**: the network is trained on digits 0–4 (Tas
 
 ## Results
 
-![Results Chart](owm_results.png)
+<img width="1334" height="730" alt="owm_results" src="https://github.com/user-attachments/assets/d904742f-5cd4-4fb1-863c-747ae2823143" />
 
 ## File Structure
 
