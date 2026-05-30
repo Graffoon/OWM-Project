@@ -22,7 +22,8 @@ The experiment uses **Split-MNIST**: the network is trained on digits 0–4 (Tas
 | [`Network.py`](Network.py) | OWM layer and network architecture, including the projector matrix P and gradient projection logic |
 | [`data_handler.py`](data_handler.py) | Downloads and filters MNIST into task-specific DataLoaders |
 | [`algorithmic_thinking.md`](algorithmic_thinking.md) | Step-by-step breakdown of the algorithm, the math behind OWM, and all design decisions |
-| [`ai_process.md`](ai_process.md) | Full log of the AI-assisted development process — what worked, what failed, and how issues were resolved |
+| [`gemeni_log.md`](gemeni_log.md) | Full log of the initially AI-assisted development process — what worked, what failed, and how issues were resolved (Gemeni) |
+| [`claude_log.md`](claude_log.md) | Full log of the finally AI-assisted development process — what worked, what failed, and how issues were resolved (Claude) |
 | [`takeaways.md`](takeaways.md) | Personal reflections on the project |
 
 ## How to Run
