@@ -1,83 +1,270 @@
-# Working with AI — Project Process Log: The Genesis
-## Orthogonal Weights Memory (OWM) Implementation
+# AI_INTERACTION_LOG
 
----
+```yaml
+project: catastrophic_forgetting_mitigation
+method: orthogonal_weights_modification_owm
+dataset: split_mnist
+ai_model: gemini
+log_format_version: 1.0
+total_logged_interactions: 5
+interactions_requiring_correction: 4
 
-## Overview
+id: string                 # ENTRY_NNN
+stage: string              # phase of project
+category: enum             # review | implementation | tuning | documentation | debugging | theoretical
+input: string              # verbatim user prompt
+ai_output: object          # structured summary of model action/reasoning
+artifacts_modified: list   # files touched
+result: enum               # success | failure | partial
+failure_mode: string       # populated if result != success
+metrics: object            # empirical values if applicable
+correction_input: string   # verbatim user correction, null if none
+resolution: object         # action taken in response to correction
+lesson: string             # generalizable takeaway, null if none
 
-This document describes the foundational stages of developing a Continual Learning neural network. It details the initial theoretical discussions, the decision to bypass common regularisation methods in favour of Orthogonal Weights Memory (OWM), and the step-by-step construction of the core architecture from scratch. It highlights the mathematical roadblocks encountered during the initial translation from whitepaper theory to working PyTorch code.
+id: ENTRY_001
+stage: architecture_initialization
+category: implementation
 
----
+input: >
+  "Ok, let's continue with the project, what do you think would be the most
+  sensible move at this moment"
 
-## Stage 1 — The Theoretical Foundation & Choosing OWM
+ai_output:
+  action: >
+    Transitioned from static mock data to real Split-MNIST data streams.
+    Provided data_handler.py to flatten images and wrap in DataLoader.
+    Updated main.py to train Task 1 (0-4), evaluate, train Task 2 (5-9), and
+    re-evaluate Task 1.
 
-The project began by establishing the physics of Catastrophic Forgetting. Standard neural networks are discriminative; when training on a new task, backpropagation blindly overwrites existing weights to minimize the immediate error gradient. 
+artifacts_modified: [data_handler.py, main.py]
 
-We discussed the common solutions to this problem and explicitly rejected them:
-* **Experience Replay:** Ruled out because storing old data violates strict data privacy and memory constraints.
-* **Elastic Weight Consolidation (EWC):** Ruled out because it only applies "soft" penalties to weight changes. Over a long sequence of tasks, the penalties compound, and the network still degrades.
+result: partial
+failure_mode: mathematical_leakage
 
-**The Unique Solution:**
-We opted for Orthogonal Weights Memory (OWM). Instead of penalizing weight changes, OWM actively intercepts the error gradients and forces them into a mathematical null space. We established the core projection formula that would dictate the entire architecture:
+metrics:
+  task_01_accuracy_after_t1: 94.93
+  task_02_accuracy_after_t2: 85.07
+  task_01_accuracy_after_t2: 81.90
 
-$$\mathbf{g}_{projected} = P \cdot \mathbf{g}_{original}$$
+correction_input: >
+  "[Uploaded image of console output] That's what I get after running it for
+  the second time, I thought task one's preformace wouldn't have been so
+  affected"
 
-* $\mathbf{g}_{projected}$: The modified gradient that will actually be applied to the weights.
-* $P$: The projector matrix, acting as a dynamic notch filter.
-* $\mathbf{g}_{original}$: The raw error gradient calculated by PyTorch.
+resolution:
+  ai_diagnosis: >
+    Identified "low-pass filter" effect. The batch-mean approximation
+    (x.mean()) smoothed out high-frequency spatial details, leaving gaps in
+    the orthogonal null space that allowed Task 2 gradients to leak.
+  action: proposed tightening math or proving baseline.
 
----
+lesson: >
+  Batch-mean approximations in RLS matrices create slight vulnerabilities in
+  the projected subspace, resulting in measurable but acceptable signal
+  attenuation (13% drop).
 
-## Stage 2 — Building from Scratch (The Component Architecture)
+id: ENTRY_002
+stage: hyperparameter_tuning
+category: tuning
 
-With the theory locked, we built the project completely from scratch rather than modifying an existing repository. We needed a system where the $P$ matrix existed on the GPU but was hidden from PyTorch's default optimizer.
+input: >
+  "I would like to prove the baseline while also inquiring if there's a way
+  to visualize the network's effectiveness... let's tighten up the math to
+  get better results for now"
 
-**What we built:**
-1.  **`OWMLayer`:** A custom neural network layer. Alongside standard weights and biases, we initialized $P$ as an Identity matrix ($I$). We used PyTorch's `register_buffer` to ensure $P$ was maintained in memory without being treated as a learnable parameter.
-2.  **The Recursive Least Squares (RLS) Engine:** We implemented the specific mathematical update to "carve out" the memory shield after every batch:
+ai_output:
+  action: >
+    1. Replaced batch-mean approximation with per-sample RLS iteration.
+    2. Lowered alpha from 1.0 to 0.1 for sharper filter boundaries.
+    3. Increased epochs from 2 to 5.
 
-$$P_{new} = P_{old} - rac{P_{old}x_{mean}x_{mean}^T P_{old}}{ lpha + x_{mean}^T P_{old}x_{mean}}$$
+artifacts_modified: [Network.py, main.py]
 
-* $P_{old}$: The current state of the projector matrix.
-* $x_{mean}$: The batch-averaged input vector representing the data signal.
-* $ lpha$: The regularization scalar preventing division by zero and smoothing the update.
+result: failure
+failure_mode: matrix_depletion
 
-**The Overfit Test:**
-Before touching real datasets, we wrote a sterile test loop (`main.py`). We fed the network a single, static batch of random noise for 100 iterations.
-* *Success Criteria:* We tracked the trace (sum of the diagonal) of $P$. It successfully dropped from 784.0, proving the algorithm was mapping the space. The loss dropped to zero, proving the gradients were successfully passing through the identity matrix.
+metrics:
+  task_01_accuracy_after_t1: 49.07
+  task_02_accuracy_after_t2: 35.56
+  task_01_accuracy_after_t2: 0.00
 
----
+correction_input: >
+  "[Uploaded image showing Task 1 accuracy at 0.00%] Houston, we have a problem"
 
-## Stage 3 — The Transition to Real Data (The Math Roadblocks)
+resolution:
+  ai_diagnosis: >
+    Matrix Depletion. High-frequency rank-1 downdates (64 per batch) drove
+    the trace of matrix P to 0. Gradient projection subsequently multiplied
+    all weight updates by 0, paralyzing the network.
+  action: full_revert_of_rls_loop
+  preserved: batch-mean approximation
 
-Once the architecture was wired, we introduced the Split MNIST dataset (digits 0-4, then 5-9). This is where the translation from pure math to applied engineering hit its first major snags.
+lesson: >
+  Mathematical constraints in deep learning algorithms cannot be tightened
+  indefinitely. Over-optimizing the RLS subtraction frequency destroys the
+  matrix trace, causing catastrophic system failure.
 
-**Roadblock 1: The Low-Pass Filter Leak**
-When Task 1 finished and Task 2 began, Task 1 accuracy dropped from ~95% to ~81%. 
-* *The Cause:* We were taking the mean of 64 images ($x_{mean}$) to update $P$. This approximation smoothed out the high-frequency spatial details, leaving microscopic gaps in the memory shield that Task 2's gradients leaked through.
-* *The Attempted Fix:* We changed the code to loop through all 64 images individually.
-* *The Consequence:* Matrix Depletion. Subtracting from $P$ tens of thousands of times per epoch drove the matrix to zero. The network paralyzed itself because all gradients were multiplied by zero. We reverted to the batch mean and accepted the 81% retention as a functional success compared to the 0% baseline.
+id: ENTRY_003
+stage: architectural_alignment
+category: debugging
 
-**Roadblock 2: The Optimizer Collision**
-We attempted to tighten the filter by lowering $ lpha$ from 1.0 to 0.1. The loss curve violently exploded.
-* *The Cause:* PyTorch's Stochastic Gradient Descent utilizes an internal Momentum buffer ($v_t$). PyTorch calculates the raw gradient, *we* project it through $P$, but then PyTorch adds the unprojected historical momentum directly into the weights, completely bypassing our middleware.
-* *The Fix:* We strictly zeroed out PyTorch's Momentum and Weight Decay hyperparameters, forcing the system to rely purely on state-less gradient descent. 
+input: >
+  "Hey, I think I botched the project, for some reason it does not work
+  anymore, I made it do 10 separate tasks (each digit) and it has 40% success
+  of the and first and a 100% on the last but all the other don't work, what
+  went wrong?"
 
----
+ai_output:
+  ai_diagnosis: >
+    Single-Class Paradox (Discriminator Trap). Cross-Entropy loss requires
+    negative examples. Training on pure batches of a single digit caused the
+    optimizer to bypass the protected spatial weights and drive the
+    unprotected output bias of the final class to infinity, hijacking all
+    predictions.
+  action: suggested reverting to 5-task split (2 digits per task) to
+          restore natural decision boundaries.
 
-## Summary of What the AI Got Right in the Early Stages
+artifacts_modified: []
 
-* **Architectural Segregation:** Correctly identifying that $P$ must be registered as a buffer, not a parameter, preventing PyTorch from destroying the matrix during backpropagation.
-* **The Overfit Strategy:** Pausing to test the raw tensor flow with a dummy batch before introducing the massive MNIST dataset, isolating mathematical bugs from data-pipeline bugs.
-* **Diagnostic Breakdowns:** Explaining *why* the matrix collapsed when we removed the batch mean, using system dynamics and filter analogies to make the abstract tensor math concrete.
+result: failure
+failure_mode: theoretical_misalignment
 
-## Summary of What Went Wrong in the Early Stages
+correction_input: >
+  "Thing is, in the paper I base my project on, they apply the model on
+  each digit individually"
 
-* **Premature Optimization:** Attempting to tighten the $ lpha$ parameter before fully auditing PyTorch's internal optimizer mechanics, leading to the momentum-induced loss explosion.
-* **Assuming Optimizer Compliance:** Failing to immediately recognize that PyTorch's default SGD implementation applies its regularizers *after* manual gradient adjustments, allowing inductive leaks.
+resolution:
+  action: parameter_augmentation
+  mechanism: >
+    Implemented 'Bias Absorption' trick. Expanded weight matrix to
+    (output_dim, input_dim + 1) and P matrix to 785x785 to explicitly
+    project and protect bias updates within the same orthogonal subspace.
 
-## Overall Reflection
+lesson: >
+  Standard OWM only protects the weight space, not the affine space. When
+  task distributions lack negative examples, biases will drift infinitely
+  to minimize discriminative loss, requiring matrix augmentation to protect.
 
-The most critical phase of the project was bridging the gap between the whitepaper mathematics and the framework's (PyTorch) hidden execution order. The theoretical formulas for OWM are flawless on paper, but implementing them required hacking the framework's native behavior. 
+id: ENTRY_004
+stage: optimizer_debugging
+category: debugging
 
-The process proved that when building custom middleware for neural networks, understanding what the framework does *implicitly* (like momentum buffering) is far more important than what it does explicitly. By stripping the system down to pure, un-optimized gradient descent, we were able to isolate the OWM variable and successfully defend the legacy weights.
+input: >
+  "[Uploaded graph showing massive loss spikes up to 4.0] It's still really bad"
+
+ai_output:
+  ai_diagnosis: >
+    Optimizer Collision. PyTorch's Stochastic Gradient Descent (SGD) applies
+    Momentum (v_t) and L2 Weight Decay AFTER custom gradient interception.
+    Historical velocity bypassed the P matrix entirely, colliding with
+    protected weights and causing the loss function to explode.
+  action: suggested zeroing momentum and weight decay.
+
+artifacts_modified: [main.py]
+
+result: failure
+failure_mode: framework_execution_conflict
+
+correction_input: >
+  "Nope, seems like the good old OWM just does not work/ not applied correctly,
+  I reckon I should revert to the old code"
+
+resolution:
+  action: executive_rollback
+  files_reverted: [Network.py, main.py]
+  net_change_from_entry: zero
+
+lesson: >
+  Framework-specific execution orders (like PyTorch applying momentum post-
+  gradient calculation) will silently bypass custom middleware. Always strip
+  optimizers to state-less gradient descent when verifying manual projection
+  logic.
+
+id: ENTRY_005
+stage: pragmatic_resolution
+category: implementation
+
+input: >
+  "So, in theory, the method of training is no less valuable than the
+  method of remembering, there's a difference if the model trains on 2 groups
+  of 5 digits, 5 groups of 2 digits or 10 groups of a single digit. For a
+  moment, let's say catastrophic forgetting isn't a thing, would there
+  acrually be any difference between the 3 methods mentioned above?"
+
+ai_output:
+  clarification: >
+    Confirmed user's theoretical derivation: Training data distribution
+    dictates the decision boundary independent of memory mechanics.
+    Explained how the Cross-Entropy denominator forces probabilities to sum
+    to 1.0, requiring concurrent negative examples to learn visual features
+    rather than just manipulating raw logits via bias.
+
+artifacts_modified: []
+
+result: success
+correction_input: null
+
+lesson: >
+  The method of training (data batching) is as critical as the method of
+  remembering. Discriminative models require variance within tasks to learn
+  meaningful boundaries; otherwise, the loss function incentivizes numerical
+  shortcuts over feature extraction.
+
+- id: F-001
+  category: mathematical_leakage
+  root_cause: "Batch-mean approximation acting as low-pass filter"
+  detection_method: empirical_metrics (13% accuracy drop)
+  resolution_cost: accepted_as_algorithmic_limitation
+
+- id: F-002
+  category: matrix_depletion
+  root_cause: "Over-frequent RLS updates depleting P matrix trace"
+  detection_method: empirical_metrics (0.00% accuracy)
+  resolution_cost: full_revert_of_RLS_loop
+
+- id: F-003
+  category: discriminator_trap
+  root_cause: "Single-class batches forcing infinite bias drift"
+  detection_method: empirical_metrics (40/0/100 distribution)
+  resolution_cost: bias_absorption_implementation
+
+- id: F-004
+  category: framework_execution_conflict
+  root_cause: "SGD Momentum applied post-projection"
+  detection_method: visual_inspection (loss spikes to 4.0)
+  resolution_cost: full_architecture_rollback
+
+- id: C-002
+  type: implementation_rollback
+  triggered_by: empirical_metrics (0.00% collapse)
+  ai_compliance: full_revert_to_batch_mean
+
+- id: C-003
+  type: constraint_enforcement
+  triggered_by: whitepaper_requirements
+  ai_compliance: implemented_complex_bias_absorption_matrix
+
+- id: C-004
+  type: executive_rollback
+  triggered_by: system_instability
+  ai_compliance: full_revert_to_stable_5_task_split
+
+architecture:
+  model: OWMNetwork(784, 800, 10)
+  p_matrix_update: batch_mean_approximation
+  bias_protection: none (relies on task variance)
+  optimizer: SGD(lr=0.01, momentum=0.0, weight_decay=0.0)
+  task_split: "5-task: 2 digits per task (e.g., [0,1], [2,3])"
+  reverted_additions: [per_sample_RLS, alpha_0.1, 10_task_split, bias_absorption_785x785]
+
+success_rate:
+  first_attempt_success: 1
+  required_correction: 4
+  correction_compliance_rate: 1.0
+
+correction_type_distribution:
+  mathematical_tuning_errors: 1
+  theoretical_misalignments: 1
+  framework_conflicts: 1
+  executive_rollbacks: 1
