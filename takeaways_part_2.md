@@ -13,8 +13,6 @@ Not everything tried in this project worked. This document covers the experiment
 **What we tried:** In an attempt to more faithfully reproduce the original OWM paper, the Split-MNIST setup was changed from 2 tasks (digits 0–4, then 5–9) to 10 tasks — one task per individual digit, trained sequentially. Alongside this, the paper's other specifications were added: SGD with momentum, L2 regularisation, dropout, and a decaying alpha schedule for the projector update.
 
 **Results:**
-
-![10-Task Experiment Results — PLACEHOLDER](placeholder_10task_results.png)
 <img width="1753" height="443" alt="image" src="https://github.com/user-attachments/assets/5f3c09df-0b4a-4fbe-8840-07d9b96d41e1" />
 
 *Placeholder — replace with the actual results screenshot/plot from the 10-task run.*
