@@ -15,6 +15,8 @@ Not everything tried in this project worked. This document covers the experiment
 **Results:**
 
 ![10-Task Experiment Results — PLACEHOLDER](placeholder_10task_results.png)
+<img width="1753" height="443" alt="image" src="https://github.com/user-attachments/assets/5f3c09df-0b4a-4fbe-8840-07d9b96d41e1" />
+
 *Placeholder — replace with the actual results screenshot/plot from the 10-task run.*
 
 The accuracy pattern across the 10 tasks came out roughly as:
