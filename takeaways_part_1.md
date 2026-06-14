@@ -16,10 +16,6 @@ The failure mode of the 10task experiment was genuinely surprising. When I tried
 
 This taught me something important: experimental choices in papers carry implicit assumptions about architecture that are not always stated. The 2task split I originally designed was actually the correct choice for this network  not a simplification, but the right fit.
 
-## What I Would Do Differently
-
-Honestly, I would probably choose a better method  one that does not require me to fight so hard just to stop it from completely erasing all memory of the previous task. The constant tension between protecting Task 1 and giving Task 2 enough room to learn made every tuning decision feel like a compromise. A replaybased method or EWC would have been more forgiving and likely produced cleaner results with less friction.
-
 ## On Using AI in This Project
 
 AI usage during this project was substantial and genuinely fruitful  and since it was actively encouraged, there was no hesitation in leaning on it. The collaboration was most valuable when it came to explaining *why* something works rather than just generating code. The geometric explanation of how P's null space relates to network width, the confirmation that the batchmean projector update is mathematically valid, and catching the train/test split error early on were all genuinely useful contributions.
