@@ -15,19 +15,6 @@ Not everything tried in this project worked. This document covers the experiment
 **Results:**
 <img width="1753" height="443" alt="image" src="https://github.com/user-attachments/assets/5f3c09df-0b4a-4fbe-8840-07d9b96d41e1" />
 
-*Placeholder — replace with the actual results screenshot/plot from the 10-task run.*
-
-The accuracy pattern across the 10 tasks came out roughly as:
-
-| Task | Digit | Final Accuracy |
-|------|-------|-----------------|
-| 1 | 0 | ~40% |
-| 2 | 1 | ~0% |
-| 3 | 2 | ~0% |
-| ... | ... | ~0% |
-| 9 | 8 | ~0% |
-| 10 | 9 | ~100% |
-
 **Why it failed:** The network's output layer has 10 neurons — one logit per digit class. When a task contains only a single digit, the loss only ever provides a gradient signal to the one output neuron corresponding to that digit. The other nine neurons receive zero gradient for that entire task. After training sequentially through all 10 single-digit tasks, only the most recently trained neuron (digit 9) ends up with meaningful weights — everything else degrades toward whatever those neurons happened to settle at, which for most of them is effectively useless. Task 1 retains a partial 40% likely because the very first task at least had a chance to shape the network before being overwritten nine more times, and digit 0 may be geometrically distinct enough in pixel space to leave some residual signal.
 
 This isn't a subtle OWM failure — it's a fundamental mismatch between the task structure and the architecture. OWM's gradient projection was working exactly as designed; it just had nothing useful to protect, because each task only ever trained a sliver of the network to begin with.
